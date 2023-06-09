@@ -1,0 +1,7 @@
+.DS_Store
+*.pyc
+*.egg-info
+*.swp
+tags
+paypalrestapi/docs/current
+node_modules/
