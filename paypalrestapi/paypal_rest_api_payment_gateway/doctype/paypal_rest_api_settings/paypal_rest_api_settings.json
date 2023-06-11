@@ -1,0 +1,73 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2023-06-09 08:24:43.880092",
+ "default_view": "List",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "use_sandbox",
+  "client_id",
+  "secret_key",
+  "token",
+  "expire_time"
+ ],
+ "fields": [
+  {
+   "fieldname": "client_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Client ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "secret_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Secret Key",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "use_sandbox",
+   "fieldtype": "Check",
+   "label": "Use Sandbox"
+  },
+  {
+   "fieldname": "token",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Token"
+  },
+  {
+   "fieldname": "expire_time",
+   "fieldtype": "Datetime",
+   "hidden": 1,
+   "label": "Expire Time"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2023-06-11 08:03:12.156604",
+ "modified_by": "Administrator",
+ "module": "PayPal Rest Api Payment Gateway",
+ "name": "PayPal Rest Api Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

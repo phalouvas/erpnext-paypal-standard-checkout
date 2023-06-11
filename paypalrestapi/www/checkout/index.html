@@ -1,0 +1,74 @@
+{% extends "templates/web.html" %}
+{% block title %}{{ _('PayPal Checkout') }}{% endblock %}
+
+{% block head_include %}
+<style>
+	.category-slideshow {
+		margin-bottom: 2rem;
+	}
+	.category-card {
+		height: 300px !important;
+		width: 300px !important;
+		margin: 30px !important;
+	}
+</style>
+{% endblock %}
+
+{% block script %}
+<script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&currency={{ currency }}&commit=true"></script>
+<script>
+	paypal.Buttons({
+        // Order is created on the server and the order id is returned
+        createOrder() {
+          var urlParams = new URLSearchParams(window.location.search);
+          return fetch("/api/method/paypalrestapi.paypal_rest_api_payment_gateway.doctype.paypal_rest_api_settings.paypal_rest_api_settings.create_order", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              cart: [
+                {
+                  reference_doctype: urlParams.get('reference_doctype'),
+                  reference_docname: urlParams.get('reference_docname'),
+                },
+              ],
+            }),
+          })
+          .then((response) => response.json())
+          .then((order) => order.id);
+        },
+        // Finalize the transaction on the server after payer approval
+        onApprove(data) {
+          return fetch("/api/method/paypalrestapi.paypal_rest_api_payment_gateway.doctype.paypal_rest_api_settings.paypal_rest_api_settings.on_approve", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              orderID: data.orderID
+            })
+          })
+          .then((response) => response.json())
+          .then((orderData) => {
+            // Successful capture! For dev/demo purposes:
+            console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
+            const transaction = orderData.purchase_units[0].payments.captures[0];
+            alert(`Transaction ${transaction.status}: ${transaction.id}\n\nSee console for all available details`);
+            // When ready to go live, remove the alert and show a success message within this page. For example:
+            // const element = document.getElementById('paypal-button-container');
+            // element.innerHTML = '<h3>Thank you for your payment!</h3>';
+            // Or go to another URL:  window.location.href = 'thank_you.html';
+          });
+        }
+      }).render('#paypal-button-container');
+</script>
+{% endblock %}
+
+{% block page_content %}
+<div class="shop-by-category-content">
+	<div class="category-slideshow">
+		<div id="paypal-button-container"></div>
+	</div>
+</div>
+{% endblock %}
