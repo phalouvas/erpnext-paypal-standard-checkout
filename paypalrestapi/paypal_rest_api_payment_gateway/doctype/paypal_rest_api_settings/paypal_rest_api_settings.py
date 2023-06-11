@@ -152,17 +152,28 @@ def on_approve():
 	data = json.loads(request_data)
 	orderID = data['orderID']
 	integration_request = frappe.get_doc('Integration Request', orderID)
-	frappe.db.set_value('Integration Request', orderID, "status", "Completed")
+	frappe.db.set_value('Integration Request', orderID, "status", "Authorized")
 
 	settings = frappe.get_doc("PayPal Rest Api Settings")
 	get_token(settings)
+	
 	headers = {
+		'Content-Type': 'application/json',
 		'Authorization': 'Bearer ' + settings.token,
 	}
 
-	url = get_api_url(settings) + "/v2/checkout/orders" + orderID
-	response = requests.get(url, headers=headers)
-	order = response.json()
-	frappe.local.response.update(order)
+	url = get_api_url(settings) + "/v2/checkout/orders/" + orderID + "/capture"
+	response = requests.post(url, headers=headers)
 
-	return order
+	if response.status_code == 201:
+		order = response.json()
+		frappe.db.set_value('Integration Request', orderID, "status", "Completed")
+		frappe.db.set_value('Integration Request', orderID, "output",  json.dumps(order))
+		frappe.local.response.update(order)
+	else:
+		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
+		frappe.local.response.update({
+			"error": "Failed to create PayPal order. Status Code: " + response.status_code
+		})
+
+	return
