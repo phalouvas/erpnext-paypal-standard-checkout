@@ -169,6 +169,15 @@ def on_approve():
 		order = response.json()
 		frappe.db.set_value('Integration Request', orderID, "status", "Completed")
 		frappe.db.set_value('Integration Request', orderID, "output",  json.dumps(order))
+
+		order["custom_redirect_to"] = frappe.get_doc(
+			integration_request.reference_doctype, integration_request.reference_docname
+			).run_method("on_payment_authorized", "Completed")
+		frappe.db.commit()
+
+		order["redirect_url"] = "payment-success?doctype={}&docname={}".format(
+			integration_request.reference_doctype, integration_request.reference_docname
+		)
 		frappe.local.response.update(order)
 	else:
 		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
