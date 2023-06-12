@@ -11,6 +11,7 @@ import json
 import datetime
 from erpnext.accounts.doctype.payment_entry.test_payment_entry import get_payment_entry
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+from frappe import _
 
 from payments.utils import create_payment_gateway
 
@@ -44,9 +45,12 @@ class PayPalStandardPaymentsSettings(Document):
 		"USD",
 	]
 
-	def validateXXX(self):
-		create_payment_gateway("PayPal Standard Payment")
-		call_hook_method("payment_gateway_enabled", gateway="PayPal Standard Payment")
+	def validate(self):
+		self.expire_time = datetime.datetime.now() - datetime.timedelta(seconds=100)
+		frappe.db.set_single_value('PayPal Standard Payments Settings', 'expire_time', self.expire_time)
+		self.expire_time = self.expire_time.strftime("%Y-%m-%d %H:%M:%S")
+		create_payment_gateway("PayPal Standard Payments")
+		call_hook_method("payment_gateway_enabled", gateway="PayPal Standard Payments")
 		if not self.flags.ignore_mandatory:
 			self.validate_paypal_credentails()
 
@@ -65,6 +69,13 @@ class PayPalStandardPaymentsSettings(Document):
 		return_url = "/checkout?currency={0}&reference_doctype={1}&reference_docname={2}"
 		return return_url.format(kwargs["currency"].upper(), kwargs['reference_doctype'], kwargs['reference_docname'])
 	
+	def validate_paypal_credentails(self):
+		
+		try:
+			get_token(self)
+		except Exception:
+			frappe.throw(_("Invalid payment gateway credentials"))
+	
 def get_api_url(settings):
 	
 	if (hasattr(settings, "use_sandbox") and settings.use_sandbox):
@@ -73,14 +84,6 @@ def get_api_url(settings):
 			api_url = "https://api-m.paypal.com"
 
 	return api_url
-
-def validate_paypal_credentails(self):
-
-		try:
-			get_token(self)
-
-		except Exception:
-			frappe.throw(_("Invalid payment gateway credentials"))
 
 def get_token(settings):
 
