@@ -11,6 +11,9 @@ import json
 import datetime
 from erpnext.accounts.doctype.payment_entry.test_payment_entry import get_payment_entry
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+
+from payments.utils import create_payment_gateway
+
 class PayPalStandardPaymentsSettings(Document):
 
 	supported_currencies = [
@@ -41,6 +44,15 @@ class PayPalStandardPaymentsSettings(Document):
 		"USD",
 	]
 
+	def validate(self):
+		create_payment_gateway("PayPal Standard Payment")
+		call_hook_method("payment_gateway_enabled", gateway="PayPal Standard Payment")
+		if not self.flags.ignore_mandatory:
+			self.validate_paypal_credentails()
+
+	def on_update(self):
+		pass
+
 	def validate_transaction_currency(self, currency):
 		if currency not in self.supported_currencies:
 			frappe.throw(
@@ -61,6 +73,14 @@ def get_api_url(settings):
 			api_url = "https://api-m.paypal.com"
 
 	return api_url
+
+def validate_paypal_credentails(self):
+
+		try:
+			get_token(self)
+
+		except Exception:
+			frappe.throw(_("Invalid payment gateway credentials"))
 
 def get_token(settings):
 
