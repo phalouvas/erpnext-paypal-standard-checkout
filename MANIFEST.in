@@ -4,15 +4,15 @@ include *.json
 include *.md
 include *.py
 include *.txt
-recursive-include paypalrestapi *.css
-recursive-include paypalrestapi *.csv
-recursive-include paypalrestapi *.html
-recursive-include paypalrestapi *.ico
-recursive-include paypalrestapi *.js
-recursive-include paypalrestapi *.json
-recursive-include paypalrestapi *.md
-recursive-include paypalrestapi *.png
-recursive-include paypalrestapi *.py
-recursive-include paypalrestapi *.svg
-recursive-include paypalrestapi *.txt
-recursive-exclude paypalrestapi *.pyc
+recursive-include paypalstandardpayments *.css
+recursive-include paypalstandardpayments *.csv
+recursive-include paypalstandardpayments *.html
+recursive-include paypalstandardpayments *.ico
+recursive-include paypalstandardpayments *.js
+recursive-include paypalstandardpayments *.json
+recursive-include paypalstandardpayments *.md
+recursive-include paypalstandardpayments *.png
+recursive-include paypalstandardpayments *.py
+recursive-include paypalstandardpayments *.svg
+recursive-include paypalstandardpayments *.txt
+recursive-exclude paypalstandardpayments *.pyc

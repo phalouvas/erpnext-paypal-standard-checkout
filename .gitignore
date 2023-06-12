@@ -3,5 +3,5 @@
 *.egg-info
 *.swp
 tags
-paypalrestapi/docs/current
+paypalstandardpayments/docs/current
 node_modules/

@@ -1,6 +1,6 @@
 from . import __version__ as app_version
 
-app_name = "paypalrestapi"
+app_name = "paypalstandardpayments"
 app_title = "PayPal Standard Payments Gateway"
 app_publisher = "KAINOTOMO PH LTD"
 app_description = "Implements PayPal Rest Api as payment gateway"
@@ -11,15 +11,15 @@ app_license = "MIT"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/paypalrestapi/css/paypalrestapi.css"
-# app_include_js = "/assets/paypalrestapi/js/paypalrestapi.js"
+# app_include_css = "/assets/paypalstandardpayments/css/paypalstandardpayments.css"
+# app_include_js = "/assets/paypalstandardpayments/js/paypalstandardpayments.js"
 
 # include js, css files in header of web template
-# web_include_css = "/assets/paypalrestapi/css/paypalrestapi.css"
-# web_include_js = "/assets/paypalrestapi/js/paypalrestapi.js"
+# web_include_css = "/assets/paypalstandardpayments/css/paypalstandardpayments.css"
+# web_include_js = "/assets/paypalstandardpayments/js/paypalstandardpayments.js"
 
 # include custom scss in every website theme (without file extension ".scss")
-# website_theme_scss = "paypalrestapi/public/scss/website"
+# website_theme_scss = "paypalstandardpayments/public/scss/website"
 
 # include js, css files in header of web form
 # webform_include_js = {"doctype": "public/js/doctype.js"}
@@ -56,27 +56,27 @@ app_license = "MIT"
 
 # add methods and filters to jinja environment
 # jinja = {
-#	"methods": "paypalrestapi.utils.jinja_methods",
-#	"filters": "paypalrestapi.utils.jinja_filters"
+#	"methods": "paypalstandardpayments.utils.jinja_methods",
+#	"filters": "paypalstandardpayments.utils.jinja_filters"
 # }
 
 # Installation
 # ------------
 
-# before_install = "paypalrestapi.install.before_install"
-# after_install = "paypalrestapi.install.after_install"
+# before_install = "paypalstandardpayments.install.before_install"
+# after_install = "paypalstandardpayments.install.after_install"
 
 # Uninstallation
 # ------------
 
-# before_uninstall = "paypalrestapi.uninstall.before_uninstall"
-# after_uninstall = "paypalrestapi.uninstall.after_uninstall"
+# before_uninstall = "paypalstandardpayments.uninstall.before_uninstall"
+# after_uninstall = "paypalstandardpayments.uninstall.after_uninstall"
 
 # Desk Notifications
 # ------------------
 # See frappe.core.notifications.get_notification_config
 
-# notification_config = "paypalrestapi.notifications.get_notification_config"
+# notification_config = "paypalstandardpayments.notifications.get_notification_config"
 
 # Permissions
 # -----------
@@ -115,39 +115,39 @@ app_license = "MIT"
 
 # scheduler_events = {
 #	"all": [
-#		"paypalrestapi.tasks.all"
+#		"paypalstandardpayments.tasks.all"
 #	],
 #	"daily": [
-#		"paypalrestapi.tasks.daily"
+#		"paypalstandardpayments.tasks.daily"
 #	],
 #	"hourly": [
-#		"paypalrestapi.tasks.hourly"
+#		"paypalstandardpayments.tasks.hourly"
 #	],
 #	"weekly": [
-#		"paypalrestapi.tasks.weekly"
+#		"paypalstandardpayments.tasks.weekly"
 #	],
 #	"monthly": [
-#		"paypalrestapi.tasks.monthly"
+#		"paypalstandardpayments.tasks.monthly"
 #	],
 # }
 
 # Testing
 # -------
 
-# before_tests = "paypalrestapi.install.before_tests"
+# before_tests = "paypalstandardpayments.install.before_tests"
 
 # Overriding Methods
 # ------------------------------
 #
 # override_whitelisted_methods = {
-#	"frappe.desk.doctype.event.event.get_events": "paypalrestapi.event.get_events"
+#	"frappe.desk.doctype.event.event.get_events": "paypalstandardpayments.event.get_events"
 # }
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
 # override_doctype_dashboards = {
-#	"Task": "paypalrestapi.task.get_dashboard_data"
+#	"Task": "paypalstandardpayments.task.get_dashboard_data"
 # }
 
 # exempt linked doctypes from being automatically cancelled
@@ -161,13 +161,13 @@ app_license = "MIT"
 
 # Request Events
 # ----------------
-# before_request = ["paypalrestapi.utils.before_request"]
-# after_request = ["paypalrestapi.utils.after_request"]
+# before_request = ["paypalstandardpayments.utils.before_request"]
+# after_request = ["paypalstandardpayments.utils.after_request"]
 
 # Job Events
 # ----------
-# before_job = ["paypalrestapi.utils.before_job"]
-# after_job = ["paypalrestapi.utils.after_job"]
+# before_job = ["paypalstandardpayments.utils.before_job"]
+# after_job = ["paypalstandardpayments.utils.after_job"]
 
 # User Data Protection
 # --------------------
@@ -197,5 +197,5 @@ app_license = "MIT"
 # --------------------------------
 
 # auth_hooks = [
-#	"paypalrestapi.auth.validate"
+#	"paypalstandardpayments.auth.validate"
 # ]
