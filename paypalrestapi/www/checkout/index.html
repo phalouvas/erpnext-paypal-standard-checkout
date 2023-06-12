@@ -21,7 +21,7 @@
         // Order is created on the server and the order id is returned
         createOrder() {
           var urlParams = new URLSearchParams(window.location.search);
-          return fetch("/api/method/paypalrestapi.paypal_rest_api_payment_gateway.doctype.paypal_rest_api_settings.paypal_rest_api_settings.create_order", {
+          return fetch("/api/method/paypalrestapi.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_order", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -40,7 +40,7 @@
         },
         // Finalize the transaction on the server after payer approval
         onApprove(data) {
-          return fetch("/api/method/paypalrestapi.paypal_rest_api_payment_gateway.doctype.paypal_rest_api_settings.paypal_rest_api_settings.on_approve", {
+          return fetch("/api/method/paypalrestapi.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.on_approve", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

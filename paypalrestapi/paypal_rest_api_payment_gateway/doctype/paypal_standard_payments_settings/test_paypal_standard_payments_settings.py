@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestPayPalRestApiSettings(FrappeTestCase):
+class TestPayPalStandardPaymentsSettings(FrappeTestCase):
 	pass

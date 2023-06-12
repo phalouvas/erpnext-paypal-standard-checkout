@@ -76,8 +76,8 @@
  "links": [],
  "modified": "2023-06-12 11:16:33.913750",
  "modified_by": "Administrator",
- "module": "PayPal Rest Api Payment Gateway",
- "name": "PayPal Rest Api Settings",
+ "module": "PayPal Standard Payments Gateway",
+ "name": "PayPal Standard Payments Settings",
  "owner": "Administrator",
  "permissions": [
   {

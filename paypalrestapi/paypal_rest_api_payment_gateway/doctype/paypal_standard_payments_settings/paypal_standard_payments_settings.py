@@ -11,7 +11,7 @@ import json
 import datetime
 from erpnext.accounts.doctype.payment_entry.test_payment_entry import get_payment_entry
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
-class PayPalRestApiSettings(Document):
+class PayPalStandardPaymentsSettings(Document):
 
 	supported_currencies = [
 		"AUD",
@@ -78,10 +78,10 @@ def get_token(settings):
 		response = requests.post(get_api_url(settings) + "/v1/oauth2/token", headers=headers, data=data, auth=(settings.client_id, settings.secret_key))
 
 		settings.token = response.json()["access_token"]
-		frappe.db.set_single_value('PayPal Rest Api Settings', 'token', settings.token)
+		frappe.db.set_single_value('PayPal Standard Payments Settings', 'token', settings.token)
 
 		settings.expire_time = datetime.datetime.now() + datetime.timedelta(seconds=response.json()["expires_in"])
-		frappe.db.set_single_value('PayPal Rest Api Settings', 'expire_time', settings.expire_time)
+		frappe.db.set_single_value('PayPal Standard Payments Settings', 'expire_time', settings.expire_time)
 
 	return settings.token
 
@@ -93,7 +93,7 @@ def create_order():
 	reference_docname = data["cart"][0]["reference_docname"]
 	doc = frappe.get_cached_doc(reference_doctype, reference_docname)
 
-	settings = frappe.get_doc("PayPal Rest Api Settings")
+	settings = frappe.get_doc("PayPal Standard Payments Settings")
 	get_token(settings)
 
 	headers = {
@@ -155,7 +155,7 @@ def on_approve():
 	integration_request = frappe.get_doc('Integration Request', orderID)
 	frappe.db.set_value('Integration Request', orderID, "status", "Authorized")
 
-	settings = frappe.get_doc("PayPal Rest Api Settings")
+	settings = frappe.get_doc("PayPal Standard Payments Settings")
 	get_token(settings)
 	
 	headers = {

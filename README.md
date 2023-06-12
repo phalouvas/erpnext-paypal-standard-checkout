@@ -1,4 +1,4 @@
-## PayPal Rest Api Payment Gateway
+## PayPal Standard Payments Gateway
 
 Implements PayPal Rest Api as payment gateway
 
