@@ -9,7 +9,7 @@ from paypalrestapi import __version__ as version
 setup(
 	name="paypalrestapi",
 	version=version,
-	description="Implements PayPal Rest Api as payment gateway",
+	description="Implements PayPal Standard Payments as payment gateway",
 	author="KAINOTOMO PH LTD",
 	author_email="info@kainotomo.com",
 	packages=find_packages(),
