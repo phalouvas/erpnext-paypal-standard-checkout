@@ -9,7 +9,8 @@ from frappe.integrations.utils import create_request_log
 import requests
 import json
 import datetime
-
+from erpnext.accounts.doctype.payment_entry.test_payment_entry import get_payment_entry
+from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 class PayPalRestApiSettings(Document):
 
 	supported_currencies = [
@@ -166,10 +167,12 @@ def on_approve():
 	response = requests.post(url, headers=headers)
 
 	if response.status_code == 201:
+		# Set Integration request to completed
 		order = response.json()
 		frappe.db.set_value('Integration Request', orderID, "status", "Completed")
 		frappe.db.set_value('Integration Request', orderID, "output",  json.dumps(order))
 
+		# Create sales invoice, payment entry and response to PayPal Javascript SDK
 		order["custom_redirect_to"] = frappe.get_doc(
 			integration_request.reference_doctype, integration_request.reference_docname
 			).run_method("on_payment_authorized", "Completed")
@@ -179,6 +182,46 @@ def on_approve():
 			integration_request.reference_doctype, integration_request.reference_docname
 		)
 		frappe.local.response.update(order)
+
+		# Create fees invoice and payment entry
+		frappe.set_user("Administrator")
+		frappe.flags.ignore_account_permission = True
+		frappe.flags.ignore_permissions = True
+
+		purchase_invoice = frappe.new_doc("Purchase Invoice")
+		purchase_invoice.posting_date = frappe.utils.today()
+		purchase_invoice.supplier = settings.supplier_fees
+		fees = frappe.utils.flt(order["purchase_units"][0]["payments"]["captures"][0]["seller_receivable_breakdown"]["paypal_fee"]["value"])
+		purchase_invoice.append(
+			"items",
+			{
+				"item_code": settings.item_fees,
+				"qty": 1,
+				"rate": fees,
+				"expense_account": settings.account_fees,
+			},
+		)
+		purchase_invoice.insert(ignore_permissions=True)
+		purchase_invoice.submit()
+
+		payment_entry = get_payment_entry("Purchase Invoice", purchase_invoice.name)
+		payment_entry.reference_no = orderID
+		payment_entry.reference_date = purchase_invoice.posting_date
+		payment_entry.paid_from_account_currency = purchase_invoice.currency
+		payment_entry.paid_to_account_currency = purchase_invoice.currency
+		payment_entry.source_exchange_rate = 1
+		payment_entry.target_exchange_rate = 1
+		payment_entry.paid_amount = purchase_invoice.grand_total
+		payment_entry.save(ignore_permissions=True)
+		payment_entry.submit()
+
+		# Create delivery note
+		reference_name = frappe.db.get_value(integration_request.reference_doctype, {'name': integration_request.reference_docname}, ['reference_name'])
+		deliver_note = make_delivery_note(reference_name)
+		deliver_note.save()
+		deliver_note.submit()
+		frappe.set_user(frappe.session.user)
+		
 	else:
 		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
 		frappe.local.response.update({
