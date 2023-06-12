@@ -44,7 +44,7 @@ class PayPalStandardPaymentsSettings(Document):
 		"USD",
 	]
 
-	def validate(self):
+	def validateXXX(self):
 		create_payment_gateway("PayPal Standard Payment")
 		call_hook_method("payment_gateway_enabled", gateway="PayPal Standard Payment")
 		if not self.flags.ignore_mandatory:

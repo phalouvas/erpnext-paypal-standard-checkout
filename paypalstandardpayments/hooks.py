@@ -3,7 +3,7 @@ from . import __version__ as app_version
 app_name = "paypalstandardpayments"
 app_title = "PayPal Standard Payments Gateway"
 app_publisher = "KAINOTOMO PH LTD"
-app_description = "Implements PayPal Rest Api as payment gateway"
+app_description = "Implements PayPal Standards Payments gateway"
 app_email = "info@kainotomo.com"
 app_license = "MIT"
 
