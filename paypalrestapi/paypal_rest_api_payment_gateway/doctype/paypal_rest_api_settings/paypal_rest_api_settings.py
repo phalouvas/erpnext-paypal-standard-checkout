@@ -184,7 +184,6 @@ def on_approve():
 		frappe.local.response.update(order)
 
 		# Create fees invoice and payment entry
-		frappe.set_user("Administrator")
 		frappe.flags.ignore_account_permission = True
 		frappe.flags.ignore_permissions = True
 
@@ -214,13 +213,6 @@ def on_approve():
 		payment_entry.paid_amount = purchase_invoice.grand_total
 		payment_entry.save(ignore_permissions=True)
 		payment_entry.submit()
-
-		# Create delivery note
-		reference_name = frappe.db.get_value(integration_request.reference_doctype, {'name': integration_request.reference_docname}, ['reference_name'])
-		deliver_note = make_delivery_note(reference_name)
-		deliver_note.save()
-		deliver_note.submit()
-		frappe.set_user(frappe.session.user)
 		
 	else:
 		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
