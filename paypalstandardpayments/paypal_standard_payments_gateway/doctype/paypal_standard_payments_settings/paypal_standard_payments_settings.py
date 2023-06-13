@@ -244,3 +244,17 @@ def on_approve():
 		})
 
 	return
+
+def create_delivery_note(doc, method=None):
+    is_stock_item = False
+    for item in doc.items:
+        is_stock_item = frappe.db.get_value("Item", item.item_code, "is_stock_item")
+
+    if not is_stock_item:
+        for item in doc.items:
+            so = frappe.get_doc("Sales Order", item.sales_order)
+            delivery_note = make_delivery_note(so.name)
+            delivery_note.save()
+            delivery_note.submit()
+
+    pass
