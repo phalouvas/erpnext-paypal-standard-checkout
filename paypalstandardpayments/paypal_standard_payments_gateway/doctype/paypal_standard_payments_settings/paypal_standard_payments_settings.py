@@ -236,6 +236,8 @@ def on_approve():
 		payment_entry.paid_amount = purchase_invoice.grand_total
 		payment_entry.save(ignore_permissions=True)
 		payment_entry.submit()
+
+		set_sales_order_status(integration_request)
 		
 	else:
 		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
@@ -244,6 +246,16 @@ def on_approve():
 		})
 
 	return
+
+def set_sales_order_status(integration_request):
+	# Get reference doctype
+	reference_doctype = integration_request.reference_doctype
+	reference_docname = integration_request.reference_docname
+	doc = frappe.get_cached_doc(reference_doctype, reference_docname)
+	reference_doctype = doc.reference_doctype
+	if reference_doctype == "Sales Order":
+		reference_name = doc.reference_name
+		frappe.db.set_value(reference_doctype, reference_name, "status", "Completed")
 
 def create_delivery_note(doc, method=None):
     is_stock_item = False
