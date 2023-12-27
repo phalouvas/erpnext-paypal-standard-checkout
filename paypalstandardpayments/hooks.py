@@ -102,6 +102,12 @@ app_license = "MIT"
 # ---------------
 # Hook on document methods and events
 
+doc_events = {
+    "Customer": {
+        "after_insert": "paypalstandardpayments.paypal_standard_payments_gateway.hooks.user.asign_portal_user",
+    }
+} 
+
 #doc_events = {
 #    "Sales Invoice": {
 #        "before_save": "paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_delivery_note"
