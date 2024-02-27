@@ -8,13 +8,16 @@
  "engine": "InnoDB",
  "field_order": [
   "use_sandbox",
+  "section_break_jpis",
   "client_id",
   "secret_key",
-  "supplier_fees",
-  "account_fees",
-  "item_fees",
+  "cost_center",
   "token",
-  "expire_time"
+  "expire_time",
+  "column_break_rvdd",
+  "paypal_account",
+  "account_fees",
+  "supplier_fees"
  ],
  "fields": [
   {
@@ -64,17 +67,32 @@
    "reqd": 1
   },
   {
-   "fieldname": "item_fees",
+   "fieldname": "paypal_account",
    "fieldtype": "Link",
-   "label": "Item Fees",
-   "options": "Item",
+   "label": "PayPal Account",
+   "options": "Account",
    "reqd": 1
+  },
+  {
+   "fieldname": "cost_center",
+   "fieldtype": "Link",
+   "label": "Default Cost Center",
+   "options": "Cost Center",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_rvdd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_jpis",
+   "fieldtype": "Section Break"
   }
  ],
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2023-06-12 14:51:34.445495",
+ "modified": "2024-02-27 09:45:49.876036",
  "modified_by": "Administrator",
  "module": "PayPal Standard Payments Gateway",
  "name": "PayPal Standard Payments Settings",
