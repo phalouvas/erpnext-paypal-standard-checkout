@@ -5,12 +5,17 @@ def add_invoice_fees(doc, method=None):
     if doc.doctype == "Sales Invoice":
         settings = frappe.get_single("PayPal Standard Payments Settings")
         if settings.account_fees:
+            fees = False
             request_data = frappe.request.get_data()
             data = json.loads(request_data)
-            orderID = data['orderID']
-            integration_request = frappe.get_doc('Integration Request', orderID)
-            order = json.loads(integration_request.output)
-            fees = frappe.utils.flt(order["purchase_units"][0]["payments"]["captures"][0]["seller_receivable_breakdown"]["paypal_fee"]["value"])
+            orderID = data.get('orderID')
+            if orderID:
+                integration_request = frappe.get_doc('Integration Request', orderID)
+                order = json.loads(integration_request.output)
+                fees = frappe.utils.flt(order["purchase_units"][0]["payments"]["captures"][0]["seller_receivable_breakdown"]["paypal_fee"]["value"])
+            elif data.get('total_commision'):
+                fees = frappe.utils.flt(data.get('total_commision'))
+
             if fees:
                 doc.append("taxes", {
                     "charge_type": "Actual",
