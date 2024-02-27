@@ -115,6 +115,11 @@ def create_order():
 	reference_doctype = data["cart"][0]["reference_doctype"]
 	reference_docname = data["cart"][0]["reference_docname"]
 	doc = frappe.get_cached_doc(reference_doctype, reference_docname)
+	if doc.grand_total == 0:
+		doc_reference_doctype = doc.reference_doctype
+		doc_reference_name = doc.reference_name
+		reference_docname = frappe.get_all(reference_doctype, filters={"reference_doctype": doc_reference_doctype, "reference_name": doc_reference_name, "grand_total": (">", 0)}, fields=["name"])[0].name
+		doc = frappe.get_doc(reference_doctype, reference_docname)
 
 	settings = frappe.get_doc("PayPal Standard Payments Settings")
 	get_token(settings)
@@ -205,38 +210,6 @@ def on_approve():
 			integration_request.reference_doctype, integration_request.reference_docname
 		)
 		frappe.local.response.update(order)
-
-		# Create fees invoice and payment entry
-		frappe.flags.ignore_account_permission = True
-		frappe.flags.ignore_permissions = True
-
-		purchase_invoice = frappe.new_doc("Purchase Invoice")
-		purchase_invoice.posting_date = frappe.utils.today()
-		purchase_invoice.supplier = settings.supplier_fees
-		fees = frappe.utils.flt(order["purchase_units"][0]["payments"]["captures"][0]["seller_receivable_breakdown"]["paypal_fee"]["value"])
-		purchase_invoice.append(
-			"items",
-			{
-				"item_code": settings.item_fees,
-				"qty": 1,
-				"rate": fees,
-				"expense_account": settings.account_fees,
-			},
-		)
-		purchase_invoice.insert(ignore_permissions=True)
-		purchase_invoice.submit()
-
-		payment_entry = get_payment_entry("Purchase Invoice", purchase_invoice.name)
-		payment_entry.reference_no = orderID
-		payment_entry.reference_date = purchase_invoice.posting_date
-		payment_entry.paid_from_account_currency = purchase_invoice.currency
-		payment_entry.paid_to_account_currency = purchase_invoice.currency
-		payment_entry.source_exchange_rate = 1
-		payment_entry.target_exchange_rate = 1
-		payment_entry.paid_amount = purchase_invoice.grand_total
-		payment_entry.save(ignore_permissions=True)
-		payment_entry.submit()
-
 		set_sales_order_status(integration_request)
 		
 	else:
