@@ -5,8 +5,9 @@ def add_invoice_fees(doc, method=None):
     if doc.doctype == "Sales Invoice":
         settings = frappe.get_single("PayPal Standard Payments Settings")
         if settings.account_fees:
+            fees = False
+            request_data = frappe.request.get_data()
             try:
-                request_data = frappe.request.get_data()
                 data = json.loads(request_data)
             except json.JSONDecodeError:
                 return
