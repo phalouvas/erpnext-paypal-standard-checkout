@@ -67,8 +67,25 @@
 {% endblock %}
 
 {% block page_content %}
-<div class="shop-by-category-content">
-	<div class="category-slideshow">
+<div class="row">
+  <div class="col">
+    <h1>{{ _('Checkout') }}</h1>
+    <p>{{ _('Please review the details of your order and click "PayPal" or "Debit or Credit Card" to complete your purchase.') }}</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>{{ _('Type') }}</th>
+          <th>{{ _('Amount') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>{{ reference_doc.doctype }}</td>
+          <td>{{ frappe.format(reference_doc.grand_total, "Currency") }}</td>
+        </tr>      
+    </table>
+	</div>
+	<div class="col p-8">
 		<div id="paypal-button-container"></div>
 	</div>
 </div>
