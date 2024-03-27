@@ -102,8 +102,8 @@ app_license = "MIT"
 # ---------------
 # Hook on document methods and events
 doc_events = {
-    "Sales Invoice": {
-        "before_insert": "paypalstandardpayments.paypal_standard_payments_gateway.hooks.sales_invoice.add_invoice_fees"
+    "Payment Entry": {
+        "before_insert": "paypalstandardpayments.paypal_standard_payments_gateway.hooks.payment_entry.add_invoice_fees"
     }
 }
 
