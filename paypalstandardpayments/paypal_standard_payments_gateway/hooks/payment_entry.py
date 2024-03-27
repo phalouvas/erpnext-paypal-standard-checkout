@@ -2,7 +2,7 @@ import frappe
 import json
 
 def add_invoice_fees(doc, method=None):
-    if doc.doctype == "Sales Invoice":
+    if doc.doctype == "Payment Entry":
         settings = frappe.get_single("PayPal Standard Payments Settings")
         if settings.account_fees:
             fees = False
@@ -23,6 +23,7 @@ def add_invoice_fees(doc, method=None):
             if fees:
                 doc.append("taxes", {
                     "charge_type": "Actual",
+                    "add_deduct_tax": "Add",
                     "account_head": settings.paypal_account,
                     "description": "PayPal Fees",
                     "tax_amount": fees,
@@ -31,9 +32,10 @@ def add_invoice_fees(doc, method=None):
                 })
                 doc.append("taxes", {
                     "charge_type": "Actual",
+                    "add_deduct_tax": "Deduct",
                     "account_head": settings.account_fees,
                     "description": "PayPal Fees",
-                    "tax_amount": -fees,
+                    "tax_amount": fees,
                     "tax_rate": 0,
                     "cost_center": settings.cost_center
                 })
