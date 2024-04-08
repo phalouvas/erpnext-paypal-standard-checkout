@@ -137,8 +137,9 @@ def create_order():
 				"custom_id": reference_doctype,
 				"amount": {
 					"currency_code": doc.currency,
-					"value": doc.grand_total
-				}
+					"value": doc.grand_total,					
+				},
+				"description": get_description(doc),
 			}
 		]
 	}
@@ -174,7 +175,18 @@ def create_order():
 		})
 	
 	return
-	
+
+def get_description(doc):
+	result = doc.subject
+
+	if doc.reference_doctype == "Sales Order":
+		sales_order = frappe.get_doc("Sales Order", doc.reference_name)
+		# if only one item in the cart, use the item name as description
+		if len(sales_order.items) == 1:
+			result = sales_order.items[0].item_name
+
+	return result
+
 @frappe.whitelist()
 def on_approve():
 	request_data = frappe.request.get_data()
