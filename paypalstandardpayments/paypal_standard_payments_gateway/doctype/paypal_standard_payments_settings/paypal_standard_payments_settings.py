@@ -121,8 +121,6 @@ def create_order():
 		reference_docname = frappe.get_all(reference_doctype, filters={"reference_doctype": doc_reference_doctype, "reference_name": doc_reference_name, "grand_total": (">", 0)}, fields=["name"])[0].name
 		doc = frappe.get_doc(reference_doctype, reference_docname)
 
-	items = get_items(doc)
-
 	settings = frappe.get_doc("PayPal Standard Payments Settings")
 	get_token(settings)
 
@@ -137,12 +135,11 @@ def create_order():
 			{
 				"reference_id": reference_docname,
 				"custom_id": reference_doctype,
-				"unit_amount": {
+				"amount": {
 					"currency_code": doc.currency,
-					"value": doc.grand_total
+					"value": doc.grand_total,					
 				},
-				"description": doc.subject,
-				"items": items,
+				"description": get_description(doc),
 			}
 		]
 	}
@@ -179,25 +176,16 @@ def create_order():
 	
 	return
 
-def get_items(doc):
-	items = []
+def get_description(doc):
+	result = doc.subject
 
 	if doc.reference_doctype == "Sales Order":
 		sales_order = frappe.get_doc("Sales Order", doc.reference_name)
-		for item in sales_order.items:
-			item_data = {
-				"name": item.item_code,
-				"description": item.item_name,
-				"unit_amount": {
-					"currency_code": sales_order.currency,
-					"value": item.rate
-				},
-				"quantity": item.qty,
-				"sku": item.uom,
-			}
-			items.append(item_data)
+		# if only one item in the cart, use the item name as description
+		if len(sales_order.items) == 1:
+			result = sales_order.items[0].item_name
 
-	return items
+	return result
 
 @frappe.whitelist()
 def on_approve():

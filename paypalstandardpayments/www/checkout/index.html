@@ -74,14 +74,15 @@
     <table class="table">
       <thead>
         <tr>
-          <th>{{ _('Type') }}</th>
+          <th colspan="2">{{ _('Type') }}</th>
           <th>{{ _('Amount') }}</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td>{{ reference_doc.doctype }}</td>
-          <td>{{ frappe.format(reference_doc.grand_total, "Currency") }}</td>
+          <td>{{ reference_doc.name }}</td>
+          <td class="text-success">{{ frappe.format(reference_doc.grand_total, "Currency") }}</td>
         </tr>      
     </table>
 	</div>
