@@ -71,6 +71,9 @@
   // Create the Card Fields Component and define callbacks
   const cardField = paypal.CardFields({
     createOrder() {
+      document.getElementById("card-field-submit-button").style.display = "none";
+      document.getElementById("card-field-submit-spinner").style.display = "block";
+      document.getElementById("card-field-submit-error").style.display = "none";
       var urlParams = new URLSearchParams(window.location.search);
       return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_order", {
         method: "POST",
@@ -114,6 +117,10 @@
     },
     onError: function (error) {
       // Do something with the error from the SDK
+      document.getElementById("card-field-submit-button").style.display = "block";
+      document.getElementById("card-field-submit-spinner").style.display = "none";
+      document.getElementById("card-field-submit-error").style.display = "block";
+
       console.error(error);
     },
   });
@@ -141,6 +148,7 @@
       });
   }
 </script>
+
 {% endblock %}
 
 {% block page_content %}
@@ -162,7 +170,7 @@
           <td>{{ reference_doc.name }}</td>
           <td class="text-success">{{ frappe.format(reference_doc.grand_total, "Currency") }}</td>
         </tr>
-      </tbody>     
+      </tbody>
     </table>
 
   </div>
@@ -175,9 +183,17 @@
       <div id="card-number-field-container"></div>
       <div id="card-expiry-field-container"></div>
       <div id="card-cvv-field-container"></div>
+      <div class="alert alert-danger" id="card-field-submit-error" role="alert" style="display: none;">
+        Something went wrong. Please try again.
+      </div>
       <button class="btn btn-primary w-100 py-4" id="card-field-submit-button" type="button">
         Pay Now
       </button>
+      <div class="text-center py-4" id="card-field-submit-spinner" style="display: none;">
+        <div class="spinner-border" role="status">
+          <span class="sr-only">Loading...</span>
+        </div>
+      </div>      
     </div>
 
     <div class="paypal-powered-by">
