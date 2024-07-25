@@ -15,9 +15,9 @@
 {% endblock %}
 
 {% block script %}
-<script src="https://www.paypal.com/sdk/js?client-id={{ client_id }}&currency={{ currency }}&commit=true"></script>
+<script src="https://www.paypal.com/sdk/js?components=buttons,card-fields&client-id={{ client_id }}&currency={{ currency }}&commit=true"></script>
 <script>
-	paypal.Buttons({
+  paypal.Buttons({
         // Order is created on the server and the order id is returned
         createOrder() {
           var urlParams = new URLSearchParams(window.location.search);
@@ -64,6 +64,81 @@
         }
       }).render('#paypal-button-container');
 </script>
+
+<script>
+  // Create the Card Fields Component and define callbacks
+  const cardField = paypal.CardFields({
+    createOrder() {
+      var urlParams = new URLSearchParams(window.location.search);
+      return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cart: [
+            {
+              reference_doctype: urlParams.get('reference_doctype'),
+              reference_docname: urlParams.get('reference_docname'),
+            },
+          ],
+        }),
+      })
+        .then((response) => response.json())
+        .then((order) => order.id);
+    },
+    onApprove(data) {
+      return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.on_approve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderID: data.orderID
+        })
+      })
+        .then((response) => response.json())
+        .then((orderData) => {
+          // Successful capture! For dev/demo purposes:
+          console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
+          const transaction = orderData.purchase_units[0].payments.captures[0];
+          //alert(`Transaction ${transaction.status}: ${transaction.id}\n\nSee console for all available details`);
+          window.location.href = orderData.redirect_url;
+          // When ready to go live, remove the alert and show a success message within this page. For example:
+          // const element = document.getElementById('paypal-button-container');
+          // element.innerHTML = '<h3>Thank you for your payment!</h3>';
+          // Or go to another URL:  window.location.href = 'thank_you.html';
+        });
+    },
+    onError: function (error) {
+      // Do something with the error from the SDK
+      console.error(error);
+    },
+  });
+  // Render each field after checking for eligibility
+  if (cardField.isEligible()) {
+    const nameField = cardField.NameField();
+    nameField.render("#card-name-field-container");
+
+    const numberField = cardField.NumberField();
+    numberField.render("#card-number-field-container");
+
+    const cvvField = cardField.CVVField();
+    cvvField.render("#card-cvv-field-container");
+
+    const expiryField = cardField.ExpiryField();
+    expiryField.render("#card-expiry-field-container");
+
+    // Add click listener to submit button and call the submit function on the CardField component
+    document
+      .getElementById("card-field-submit-button")
+      .addEventListener("click", () => {
+        cardField.submit().then(() => {
+          // submit successful
+        });
+      });
+  }
+</script>
 {% endblock %}
 
 {% block page_content %}
@@ -89,5 +164,18 @@
 	<div class="col p-8">
 		<div id="paypal-button-container"></div>
 	</div>
+  <div class="col p-8">
+    <div id="checkout-form">
+      <!-- Containers for Card Fields hosted by PayPal -->
+      <div id="card-name-field-container"></div>
+      <div id="card-number-field-container"></div>
+      <div id="card-expiry-field-container"></div>
+      <div id="card-cvv-field-container"></div>      
+      <br><br>
+      <button class="btn btn-primary" id="card-field-submit-button" type="button">
+        Pay now
+      </button>
+    </div>
+  </div>
 </div>
 {% endblock %}
