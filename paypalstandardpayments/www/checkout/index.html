@@ -162,18 +162,7 @@
           <td>{{ reference_doc.name }}</td>
           <td class="text-success">{{ frappe.format(reference_doc.grand_total, "Currency") }}</td>
         </tr>
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3">
-            <p class="font-italic"><u>Important Notice:</u>&nbsp;
-              We use PayPal as an intermediary, which means that credit card details are not stored on our platform,
-              reducing the risk of sensitive information being compromised. This approach simplifies the payment
-              process, making it a straightforward and secure option for both us as a business and you as a customer.
-            </p>
-          </td>
-        </tr>
-      </tfoot>
+      </tbody>     
     </table>
 
   </div>
@@ -227,4 +216,9 @@
   </div>
 
 </div>
+<p class="font-italic"><u>Important Notice:</u>&nbsp;
+  We use PayPal as an intermediary, which means that credit card details are not stored on our platform,
+  reducing the risk of sensitive information being compromised. This approach simplifies the payment
+  process, making it a straightforward and secure option for both us as a business and you as a customer.
+</p>
 {% endblock %}
