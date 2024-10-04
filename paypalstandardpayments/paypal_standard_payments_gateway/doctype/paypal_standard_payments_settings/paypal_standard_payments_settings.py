@@ -207,10 +207,21 @@ def on_approve():
 	response = requests.post(url, headers=headers)
 
 	if response.status_code == 201:
-		# Set Integration request to completed
+		# Get order details
 		order = response.json()
-		frappe.db.set_value('Integration Request', orderID, "status", "Completed")
+
+		# Get capture details
+		capture = order["purchase_units"][0]["payments"]["captures"][0]
+		status, message = validate_capture(capture)
+		
+		frappe.db.set_value('Integration Request', orderID, "status", status)
 		frappe.db.set_value('Integration Request', orderID, "output",  json.dumps(order))
+
+		if status != 'Completed':
+			frappe.local.response.update({
+				"error": message
+			})
+			return
 
 		# Create sales invoice, payment entry and response to PayPal Javascript SDK
 		order["custom_redirect_to"] = frappe.get_doc(
@@ -232,6 +243,30 @@ def on_approve():
 
 	return
 
+def validate_capture(capture):
+	status = capture["status"]
+	if status == "COMPLETED":
+		return 'Completed', 'Payment completed successfully'
+	
+	error_codes = {
+		"0500": "DO_NOT_HONOR",
+		"9500": "SUSPECTED_FRAUD. Try using another card. Do not retry the same card.",
+		"5400": "EXPIRED_CARD",
+		"5180": "INVALID_OR_RESTRICTED_CARD. Try using another card. Do not retry the same card.",
+		"5120": "INSUFFICIENT_FUNDS",
+		"9520": "LOST_OR_STOLEN. Try using another card. Do not retry the same card.",
+		"1330": "INVALID_ACCOUNT",
+		"5100": "GENERIC_DECLINE",
+		"00N7": "CVV2_FAILURE_POSSIBLE_RETRY_WITH_CVV or CVV2_FAILURE",
+		"5110": "CVV2_FAILURE_POSSIBLE_RETRY_WITH_CVV or CVV2_FAILURE"
+	}
+	processor_response_code = capture["processor_response"]["response_code"]
+	if processor_response_code in error_codes:
+		return 'Failed', error_codes[processor_response_code]
+	else:
+		return 'Failed', 'Unknown error'
+	
+	
 def set_sales_order_status(integration_request):
 	# Get reference doctype
 	reference_doctype = integration_request.reference_doctype
