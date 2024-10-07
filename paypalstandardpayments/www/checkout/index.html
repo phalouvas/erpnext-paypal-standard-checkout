@@ -54,7 +54,14 @@
         .then((response) => response.json())
         .then((orderData) => {
           // Successful capture! For dev/demo purposes:
-          console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
+          //console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
+          if (orderData.error) {
+            document.getElementById("card-field-submit-button").style.display = "block";
+            document.getElementById("card-field-submit-spinner").style.display = "none";
+            document.getElementById("card-field-submit-error").style.display = "block";
+            document.getElementById("card-field-submit-error").innerText = orderData.error;
+            return;
+          }
           const transaction = orderData.purchase_units[0].payments.captures[0];
           //alert(`Transaction ${transaction.status}: ${transaction.id}\n\nSee console for all available details`);
           window.location.href = orderData.redirect_url;
