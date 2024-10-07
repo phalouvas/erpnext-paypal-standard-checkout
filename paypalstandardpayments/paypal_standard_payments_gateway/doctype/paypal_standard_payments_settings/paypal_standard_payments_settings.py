@@ -171,7 +171,7 @@ def create_order():
 		
 	else:
 		frappe.local.response.update({
-			"error": "Failed to create PayPal order. Status Code: " + response.status_code
+			"error": "Failed to create PayPal order. Status Code: " + str(response.status_code) + " " + response.reason
 		})
 	
 	return
@@ -238,7 +238,7 @@ def on_approve():
 	else:
 		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
 		frappe.local.response.update({
-			"error": "Failed to create PayPal order. Status Code: " + response.status_code
+			"error": "Failed to approve PayPal order. Status Code: " + str(response.status_code) + " " + response.reason
 		})
 
 	return
