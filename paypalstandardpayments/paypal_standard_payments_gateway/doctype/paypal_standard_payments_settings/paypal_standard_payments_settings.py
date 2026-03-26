@@ -4,12 +4,10 @@
 # import frappe
 from frappe.model.document import Document
 import frappe
-from frappe.utils import call_hook_method, cint, get_datetime, get_url
-from frappe.integrations.utils import create_request_log
+from frappe.utils import call_hook_method
 import requests
 import json
 import datetime
-from erpnext.accounts.doctype.payment_entry.test_payment_entry import get_payment_entry
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 from frappe import _
 
