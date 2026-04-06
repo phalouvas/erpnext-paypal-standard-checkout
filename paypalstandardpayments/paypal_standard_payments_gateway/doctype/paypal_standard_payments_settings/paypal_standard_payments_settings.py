@@ -187,57 +187,100 @@ def get_description(doc):
 
 @frappe.whitelist()
 def on_approve():
-	request_data = frappe.request.get_data()
-	data = json.loads(request_data)
-	orderID = data['orderID']
-	integration_request = frappe.get_doc('Integration Request', orderID)
-	frappe.db.set_value('Integration Request', orderID, "status", "Authorized")
-
-	settings = frappe.get_doc("PayPal Standard Payments Settings")
-	get_token(settings)
-	
-	headers = {
-		'Content-Type': 'application/json',
-		'Authorization': 'Bearer ' + settings.token,
-	}
-
-	url = get_api_url(settings) + "/v2/checkout/orders/" + orderID + "/capture"
-	response = requests.post(url, headers=headers)
-
-	if response.status_code == 201:
-		# Get order details
-		order = response.json()
-
-		# Get capture details
-		capture = order["purchase_units"][0]["payments"]["captures"][0]
-		status, message = validate_capture(capture)
-		
-		frappe.db.set_value('Integration Request', orderID, "status", status)
-		frappe.db.set_value('Integration Request', orderID, "output",  json.dumps(order))
-
-		if status != 'Completed':
-			frappe.local.response.update({
-				"error": message
-			})
+	order_id = None
+	try:
+		request_data = frappe.request.get_data()
+		data = json.loads(request_data or "{}")
+		order_id = data.get("orderID")
+		if not order_id:
+			frappe.local.response.update({"error": _("Missing orderID")})
 			return
 
-		# Create sales invoice, payment entry and response to PayPal Javascript SDK
-		order["custom_redirect_to"] = frappe.get_doc(
-			integration_request.reference_doctype, integration_request.reference_docname
-			).run_method("on_payment_authorized", "Completed")
-		frappe.db.commit()
+		integration_request = frappe.get_doc("Integration Request", order_id)
+		frappe.db.set_value("Integration Request", order_id, "status", "Authorized")
 
+		settings = frappe.get_doc("PayPal Standard Payments Settings")
+		get_token(settings)
+
+		headers = {
+			"Content-Type": "application/json",
+			"Authorization": "Bearer " + settings.token,
+		}
+
+		url = get_api_url(settings) + "/v2/checkout/orders/" + order_id + "/capture"
+		response = requests.post(url, headers=headers)
+
+		if response.status_code != 201:
+			frappe.db.set_value("Integration Request", order_id, "status", "Failed")
+			frappe.local.response.update(
+				{
+					"error": "Failed to approve PayPal order. Status Code: "
+					+ str(response.status_code)
+					+ " "
+					+ response.reason
+				}
+			)
+			return
+
+		order = response.json()
+		capture = (
+			order.get("purchase_units", [{}])[0]
+			.get("payments", {})
+			.get("captures", [{}])[0]
+		)
+		if not capture:
+			frappe.db.set_value("Integration Request", order_id, "status", "Failed")
+			frappe.local.response.update({"error": _("Invalid PayPal capture response")})
+			return
+
+		status, message = validate_capture(capture)
+		frappe.db.set_value("Integration Request", order_id, "status", status)
+		frappe.db.set_value("Integration Request", order_id, "output", json.dumps(order))
+
+		if status != "Completed":
+			frappe.local.response.update({"error": message})
+			return
+
+		from erpnext.accounts.doctype.payment_entry import payment_entry as payment_entry_module
+
+		# Bank account read is required while Payment Entry is built from Payment Request.
+		# Patch only this request scope to avoid changing website user session state.
+		original_get_bank_account_details = payment_entry_module.get_bank_account_details
+
+		def _safe_bank_account_details(bank_account):
+			return frappe.get_cached_value(
+				"Bank Account", bank_account, ["account", "bank", "bank_account_no"], as_dict=1
+			)
+
+		payment_entry_module.get_bank_account_details = _safe_bank_account_details
+		try:
+			order["custom_redirect_to"] = frappe.get_doc(
+				integration_request.reference_doctype, integration_request.reference_docname
+			).run_method("on_payment_authorized", "Completed")
+		finally:
+			payment_entry_module.get_bank_account_details = original_get_bank_account_details
+
+		frappe.db.commit()
 		order["redirect_url"] = "payment-success?doctype={}&docname={}".format(
 			integration_request.reference_doctype, integration_request.reference_docname
 		)
 		frappe.local.response.update(order)
 		set_sales_order_status(integration_request)
-		
-	else:
-		frappe.db.set_value('Integration Request', orderID, "status", "Failed")
-		frappe.local.response.update({
-			"error": "Failed to approve PayPal order. Status Code: " + str(response.status_code) + " " + response.reason
-		})
+
+	except frappe.PermissionError as err:
+		if order_id:
+			frappe.db.set_value("Integration Request", order_id, "status", "Failed")
+		frappe.log_error(frappe.get_traceback(), "PayPal on_approve permission error")
+		frappe.local.response.update({"error": str(err) or _("Payment finalization permission error")})
+	except json.JSONDecodeError:
+		if order_id:
+			frappe.db.set_value("Integration Request", order_id, "status", "Failed")
+		frappe.local.response.update({"error": _("Invalid request payload")})
+	except Exception:
+		if order_id:
+			frappe.db.set_value("Integration Request", order_id, "status", "Failed")
+		frappe.log_error(frappe.get_traceback(), "PayPal on_approve failed")
+		frappe.local.response.update({"error": _("Unable to finalize payment. Please contact support.")})
 
 	return
 
