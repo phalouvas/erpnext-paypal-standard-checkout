@@ -64,6 +64,37 @@
     return response.text().then((text) => ({ data: text, isJson: false }));
   }
 
+  function getOrderIdFromPayload(payload) {
+    if (!payload) {
+      return null;
+    }
+
+    return payload.orderID || payload.orderId || payload.id || null;
+  }
+
+  function createOrderOnServer() {
+    var urlParams = new URLSearchParams(window.location.search);
+    return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_order", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cart: [
+          {
+            reference_doctype: urlParams.get('reference_doctype'),
+            reference_docname: urlParams.get('reference_docname'),
+          },
+        ],
+      }),
+    })
+      .then((response) => response.json())
+      .then((order) => ({
+        id: order.id,
+        orderId: order.orderId || order.id,
+      }));
+  }
+
   function finalizeCheckout(orderID) {
     return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.on_approve", {
       method: "POST",
@@ -120,28 +151,18 @@
   paypal.Buttons({
     // Order is created on the server and the order id is returned
     createOrder() {
-      var urlParams = new URLSearchParams(window.location.search);
-      return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cart: [
-            {
-              reference_doctype: urlParams.get('reference_doctype'),
-              reference_docname: urlParams.get('reference_docname'),
-            },
-          ],
-        }),
-      })
-        .then((response) => response.json())
-        .then((order) => order.id);
+      return createOrderOnServer().then((order) => order.id);
     },
     // Finalize the transaction on the server after payer approval
     onApprove(data) {
+      const orderId = getOrderIdFromPayload(data);
+      if (!orderId) {
+        setCardSubmitState("error", "Missing PayPal order ID. Please retry.");
+        return;
+      }
+
       setCardSubmitState("loading");
-      return finalizeCheckout(data.orderID).then((result) => {
+      return finalizeCheckout(orderId).then((result) => {
         if (result.error) {
           setCardSubmitState("error", result.error);
           return;
@@ -161,27 +182,17 @@
       document.getElementById("card-field-submit-button").style.display = "none";
       document.getElementById("card-field-submit-spinner").style.display = "block";
       document.getElementById("card-field-submit-error").style.display = "none";
-      var urlParams = new URLSearchParams(window.location.search);
-      return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.create_order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cart: [
-            {
-              reference_doctype: urlParams.get('reference_doctype'),
-              reference_docname: urlParams.get('reference_docname'),
-            },
-          ],
-        }),
-      })
-        .then((response) => response.json())
-        .then((order) => order.id);
+      return createOrderOnServer().then((order) => order.id);
     },
     onApprove(data) {
+      const orderId = getOrderIdFromPayload(data);
+      if (!orderId) {
+        setCardSubmitState("error", "Missing PayPal order ID. Please retry.");
+        return;
+      }
+
       setCardSubmitState("loading");
-      return finalizeCheckout(data.orderID).then((result) => {
+      return finalizeCheckout(orderId).then((result) => {
         if (result.error) {
           setCardSubmitState("error", result.error);
           return;
