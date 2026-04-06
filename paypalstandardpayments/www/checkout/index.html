@@ -19,6 +19,104 @@
 <script
   src="https://www.paypal.com/sdk/js?components=buttons,card-fields&client-id={{ client_id }}&currency={{ currency }}&commit=true"></script>
 <script>
+  function setCardSubmitState(state, message) {
+    const button = document.getElementById("card-field-submit-button");
+    const spinner = document.getElementById("card-field-submit-spinner");
+    const error = document.getElementById("card-field-submit-error");
+
+    if (state === "loading") {
+      button.style.display = "none";
+      spinner.style.display = "block";
+      error.style.display = "none";
+      return;
+    }
+
+    if (state === "error") {
+      button.style.display = "block";
+      spinner.style.display = "none";
+      error.style.display = "block";
+      if (message) {
+        error.innerText = message;
+      }
+      return;
+    }
+
+    button.style.display = "block";
+    spinner.style.display = "none";
+    error.style.display = "none";
+  }
+
+  function getNestedValue(obj, path) {
+    return path.reduce((acc, key) => {
+      if (acc == null) {
+        return undefined;
+      }
+      return acc[key];
+    }, obj);
+  }
+
+  function parseServerResponse(response) {
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    if (contentType.includes("application/json")) {
+      return response.json().then((data) => ({ data, isJson: true }));
+    }
+
+    return response.text().then((text) => ({ data: text, isJson: false }));
+  }
+
+  function finalizeCheckout(orderID) {
+    return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.on_approve", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        orderID,
+      }),
+    })
+      .then((response) => {
+        return parseServerResponse(response).then((payload) => ({
+          ok: response.ok,
+          status: response.status,
+          payload,
+        }));
+      })
+      .then(({ ok, status, payload }) => {
+        if (!ok) {
+          if (payload.isJson && payload.data && payload.data._error_message) {
+            return { error: payload.data._error_message };
+          }
+
+          if (payload.isJson && payload.data && payload.data.error) {
+            return { error: payload.data.error };
+          }
+
+          if (status === 403) {
+            return { error: "You do not have permission to complete this payment. Please contact support." };
+          }
+
+          return { error: "Payment finalization failed. Please try again." };
+        }
+
+        if (!payload.isJson || !payload.data) {
+          return { error: "Invalid server response. Please try again." };
+        }
+
+        const orderData = payload.data;
+        if (orderData.error) {
+          return { error: orderData.error };
+        }
+
+        const transaction = getNestedValue(orderData, ["purchase_units", 0, "payments", "captures", 0]);
+        if (!transaction) {
+          return { error: "Payment was processed but capture details were missing." };
+        }
+
+        return { orderData };
+      })
+      .catch(() => ({ error: "Network error while confirming payment. Please retry." }));
+  }
+
   paypal.Buttons({
     // Order is created on the server and the order id is returned
     createOrder() {
@@ -42,34 +140,16 @@
     },
     // Finalize the transaction on the server after payer approval
     onApprove(data) {
-      return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.on_approve", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderID: data.orderID
-        })
-      })
-        .then((response) => response.json())
-        .then((orderData) => {
-          // Successful capture! For dev/demo purposes:
-          //console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
-          if (orderData.error) {
-            document.getElementById("card-field-submit-button").style.display = "block";
-            document.getElementById("card-field-submit-spinner").style.display = "none";
-            document.getElementById("card-field-submit-error").style.display = "block";
-            document.getElementById("card-field-submit-error").innerText = orderData.error;
-            return;
-          }
-          const transaction = orderData.purchase_units[0].payments.captures[0];
-          //alert(`Transaction ${transaction.status}: ${transaction.id}\n\nSee console for all available details`);
-          window.location.href = orderData.redirect_url;
-          // When ready to go live, remove the alert and show a success message within this page. For example:
-          // const element = document.getElementById('paypal-button-container');
-          // element.innerHTML = '<h3>Thank you for your payment!</h3>';
-          // Or go to another URL:  window.location.href = 'thank_you.html';
-        });
+      setCardSubmitState("loading");
+      return finalizeCheckout(data.orderID).then((result) => {
+        if (result.error) {
+          setCardSubmitState("error", result.error);
+          return;
+        }
+
+        setCardSubmitState("default");
+        window.location.href = result.orderData.redirect_url;
+      });
     }
   }).render('#paypal-button-container');
 </script>
@@ -100,34 +180,16 @@
         .then((order) => order.id);
     },
     onApprove(data) {
-      return fetch("/api/method/paypalstandardpayments.paypal_standard_payments_gateway.doctype.paypal_standard_payments_settings.paypal_standard_payments_settings.on_approve", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          orderID: data.orderID
-        })
-      })
-        .then((response) => response.json())
-        .then((orderData) => {
-          //console.log('Capture result', orderData, JSON.stringify(orderData, null, 2));
-          if (orderData.error) {
-            document.getElementById("card-field-submit-button").style.display = "block";
-            document.getElementById("card-field-submit-spinner").style.display = "none";
-            document.getElementById("card-field-submit-error").style.display = "block";
-            document.getElementById("card-field-submit-error").innerText = orderData.error;
-            return;
-          }
-          // Successful capture! For dev/demo purposes:
-          const transaction = orderData.purchase_units[0].payments.captures[0];
-          //alert(`Transaction ${transaction.status}: ${transaction.id}\n\nSee console for all available details`);
-          window.location.href = orderData.redirect_url;
-          // When ready to go live, remove the alert and show a success message within this page. For example:
-          // const element = document.getElementById('paypal-button-container');
-          // element.innerHTML = '<h3>Thank you for your payment!</h3>';
-          // Or go to another URL:  window.location.href = 'thank_you.html';
-        });
+      setCardSubmitState("loading");
+      return finalizeCheckout(data.orderID).then((result) => {
+        if (result.error) {
+          setCardSubmitState("error", result.error);
+          return;
+        }
+
+        setCardSubmitState("default");
+        window.location.href = result.orderData.redirect_url;
+      });
     },
     onError: function (error) {
       // Do something with the error from the SDK
