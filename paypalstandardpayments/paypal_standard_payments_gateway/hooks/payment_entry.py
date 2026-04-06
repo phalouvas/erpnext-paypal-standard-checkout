@@ -1,6 +1,24 @@
 import frappe
 import json
 
+
+def _get_nested_value(source, path, default=None):
+    current = source
+    for key in path:
+        if isinstance(current, dict):
+            current = current.get(key)
+        elif isinstance(current, list) and isinstance(key, int):
+            if key < 0 or key >= len(current):
+                return default
+            current = current[key]
+        else:
+            return default
+
+        if current is None:
+            return default
+
+    return current
+
 def add_invoice_fees(doc, method=None):
     if doc.doctype == "Payment Entry":
         settings = frappe.get_single("PayPal Standard Payments Settings")
@@ -12,11 +30,26 @@ def add_invoice_fees(doc, method=None):
             except json.JSONDecodeError:
                 return
 
-            orderID = data.get('orderID')
+            orderID = data.get('orderID') or data.get('orderId')
             if orderID:
                 integration_request = frappe.get_doc('Integration Request', orderID)
                 order = json.loads(integration_request.output)
-                fees = frappe.utils.flt(order["purchase_units"][0]["payments"]["captures"][0]["seller_receivable_breakdown"]["paypal_fee"]["value"])
+                fees = frappe.utils.flt(
+                    _get_nested_value(
+                        order,
+                        [
+                            "purchase_units",
+                            0,
+                            "payments",
+                            "captures",
+                            0,
+                            "seller_receivable_breakdown",
+                            "paypal_fee",
+                            "value",
+                        ],
+                        0,
+                    )
+                )
             elif data.get('total_commision'):
                 fees = frappe.utils.flt(data.get('total_commision'))
 

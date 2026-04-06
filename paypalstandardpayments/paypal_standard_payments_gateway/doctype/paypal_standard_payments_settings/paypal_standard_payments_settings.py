@@ -147,6 +147,7 @@ def create_order():
 
 	if response.status_code == 201:
 		order = response.json()
+		order["orderId"] = order.get("id")
 		frappe.local.response.update(order)
 
 		intergration_request = frappe.get_doc(
@@ -185,18 +186,39 @@ def get_description(doc):
 
 	return result
 
+
+def get_order_id_from_payload(payload):
+	"""Accept both legacy orderID and v6-style orderId keys."""
+	return payload.get("orderID") or payload.get("orderId")
+
 @frappe.whitelist()
 def on_approve():
 	order_id = None
 	try:
 		request_data = frappe.request.get_data()
 		data = json.loads(request_data or "{}")
-		order_id = data.get("orderID")
+		order_id = get_order_id_from_payload(data)
 		if not order_id:
 			frappe.local.response.update({"error": _("Missing orderID")})
 			return
 
 		integration_request = frappe.get_doc("Integration Request", order_id)
+		if integration_request.status == "Completed":
+			frappe.local.response.update(
+				{
+					"id": order_id,
+					"orderId": order_id,
+					"redirect_url": "payment-success?doctype={}&docname={}".format(
+						integration_request.reference_doctype, integration_request.reference_docname
+					),
+				}
+			)
+			return
+
+		if integration_request.status == "Failed":
+			frappe.local.response.update({"error": _("Payment request is in failed state")})
+			return
+
 		frappe.db.set_value("Integration Request", order_id, "status", "Authorized")
 
 		settings = frappe.get_doc("PayPal Standard Payments Settings")
@@ -264,6 +286,7 @@ def on_approve():
 		order["redirect_url"] = "payment-success?doctype={}&docname={}".format(
 			integration_request.reference_doctype, integration_request.reference_docname
 		)
+		order["orderId"] = order.get("id")
 		frappe.local.response.update(order)
 		set_sales_order_status(integration_request)
 
