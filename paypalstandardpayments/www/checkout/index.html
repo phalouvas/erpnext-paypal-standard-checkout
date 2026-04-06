@@ -16,8 +16,7 @@
 {% endblock %}
 
 {% block script %}
-<script
-  src="https://www.paypal.com/sdk/js?components=buttons,card-fields&client-id={{ client_id }}&currency={{ currency }}&commit=true"></script>
+<script src="{{ paypal_sdk_v6_core_url }}"></script>
 <script>
   function setCardSubmitState(state, message) {
     const button = document.getElementById("card-field-submit-button");
@@ -70,6 +69,22 @@
     }
 
     return payload.orderID || payload.orderId || payload.id || null;
+  }
+
+  function setPayPalButtonError(message) {
+    const error = document.getElementById("paypal-button-error");
+    if (!error) {
+      return;
+    }
+
+    if (!message) {
+      error.style.display = "none";
+      error.innerText = "";
+      return;
+    }
+
+    error.innerText = message;
+    error.style.display = "block";
   }
 
   function createOrderOnServer() {
@@ -148,90 +163,192 @@
       .catch(() => ({ error: "Network error while confirming payment. Please retry." }));
   }
 
-  paypal.Buttons({
-    // Order is created on the server and the order id is returned
-    createOrder() {
-      return createOrderOnServer().then((order) => order.id);
-    },
-    // Finalize the transaction on the server after payer approval
-    onApprove(data) {
-      const orderId = getOrderIdFromPayload(data);
-      if (!orderId) {
-        setCardSubmitState("error", "Missing PayPal order ID. Please retry.");
-        return;
-      }
-
-      setCardSubmitState("loading");
-      return finalizeCheckout(orderId).then((result) => {
-        if (result.error) {
-          setCardSubmitState("error", result.error);
-          return;
-        }
-
-        setCardSubmitState("default");
-        window.location.href = result.orderData.redirect_url;
-      });
+  async function finalizeAndRedirect(orderId) {
+    if (!orderId) {
+      setPayPalButtonError("Missing PayPal order ID. Please retry.");
+      return;
     }
-  }).render('#paypal-button-container');
-</script>
 
-<script>
-  // Create the Card Fields Component and define callbacks
-  const cardField = paypal.CardFields({
-    createOrder() {
-      document.getElementById("card-field-submit-button").style.display = "none";
-      document.getElementById("card-field-submit-spinner").style.display = "block";
-      document.getElementById("card-field-submit-error").style.display = "none";
-      return createOrderOnServer().then((order) => order.id);
-    },
-    onApprove(data) {
-      const orderId = getOrderIdFromPayload(data);
-      if (!orderId) {
-        setCardSubmitState("error", "Missing PayPal order ID. Please retry.");
+    const result = await finalizeCheckout(orderId);
+    if (result.error) {
+      setPayPalButtonError(result.error);
+      return;
+    }
+
+    setPayPalButtonError();
+    window.location.href = result.orderData.redirect_url;
+  }
+
+  function setCardError(message) {
+    setCardSubmitState("error", message || "Card payment failed. Please try again.");
+  }
+
+  async function initPayPalV6Button(sdkInstance) {
+    const v6Button = document.getElementById("paypal-v6-button");
+    if (!v6Button) {
+      return;
+    }
+
+    try {
+      const paymentMethods = await sdkInstance.findEligibleMethods({
+        currencyCode: "{{ currency }}",
+      });
+
+      if (!paymentMethods || !paymentMethods.isEligible("paypal")) {
+        setPayPalButtonError("PayPal checkout is currently unavailable for this transaction.");
         return;
       }
 
-      setCardSubmitState("loading");
-      return finalizeCheckout(orderId).then((result) => {
-        if (result.error) {
-          setCardSubmitState("error", result.error);
-          return;
+      const paypalSession = sdkInstance.createPayPalOneTimePaymentSession({
+        onApprove(data) {
+          return finalizeAndRedirect(data.orderId);
+        },
+        onError(error) {
+          const message = (error && error.message) || "Unable to start PayPal checkout. Please try again.";
+          setPayPalButtonError(message);
+        },
+      });
+
+      if (paypalSession.hasReturned()) {
+        await paypalSession.resume();
+        return;
+      }
+
+      v6Button.hidden = false;
+      v6Button.addEventListener("click", async () => {
+        setPayPalButtonError();
+        try {
+          const createOrderPromise = createOrderOnServer().then((order) => ({ orderId: order.orderId }));
+          await paypalSession.start({ presentationMode: "auto" }, createOrderPromise);
+        } catch (error) {
+          const message = (error && error.message) || "Unable to start PayPal checkout. Please try again.";
+          setPayPalButtonError(message);
         }
-
-        setCardSubmitState("default");
-        window.location.href = result.orderData.redirect_url;
       });
-    },
-    onError: function (error) {
-      // Do something with the error from the SDK
-      document.getElementById("card-field-submit-button").style.display = "block";
-      document.getElementById("card-field-submit-spinner").style.display = "none";
-      document.getElementById("card-field-submit-error").style.display = "block";
-    },
-  });
-  // Render each field after checking for eligibility
-  if (cardField.isEligible()) {
-    const nameField = cardField.NameField();
-    nameField.render("#card-name-field-container");
-
-    const numberField = cardField.NumberField();
-    numberField.render("#card-number-field-container");
-
-    const cvvField = cardField.CVVField();
-    cvvField.render("#card-cvv-field-container");
-
-    const expiryField = cardField.ExpiryField();
-    expiryField.render("#card-expiry-field-container");
-
-    // Add click listener to submit button and call the submit function on the CardField component
-    document
-      .getElementById("card-field-submit-button")
-      .addEventListener("click", () => {
-        cardField.submit().then(() => {
-          // submit successful
-        });
-      });
+    } catch (error) {
+      setPayPalButtonError("Unable to initialize PayPal checkout. Please refresh and try again.");
+    }
   }
+
+  async function initCardFieldsV6() {
+    const numberContainer = document.getElementById("card-number-field-container");
+    const expiryContainer = document.getElementById("card-expiry-field-container");
+    const cvvContainer = document.getElementById("card-cvv-field-container");
+    const submitButton = document.getElementById("card-field-submit-button");
+
+    if (!numberContainer || !expiryContainer || !cvvContainer || !submitButton) {
+      return;
+    }
+
+    try {
+      const cardSdkInstance = await window.paypal.createInstance({
+        clientId: "{{ client_id }}",
+        components: ["card-fields"],
+      });
+
+      const paymentMethods = await cardSdkInstance.findEligibleMethods({
+        currencyCode: "{{ currency }}",
+      });
+
+      const isCardFieldsEligible = paymentMethods && paymentMethods.isEligible("advanced_cards");
+      if (!isCardFieldsEligible) {
+        submitButton.style.display = "none";
+        setCardError("Card payments are currently unavailable. Please use PayPal checkout.");
+        return;
+      }
+
+      const cardFieldsInstance = cardSdkInstance.createCardFieldsOneTimePaymentSession();
+      const numberField = cardFieldsInstance.createCardFieldsComponent({
+        type: "number",
+        placeholder: "Card Number",
+      });
+      const expiryField = cardFieldsInstance.createCardFieldsComponent({
+        type: "expiry",
+        placeholder: "MM/YY",
+      });
+      const cvvField = cardFieldsInstance.createCardFieldsComponent({
+        type: "cvv",
+        placeholder: "CVV",
+      });
+
+      numberContainer.appendChild(numberField);
+      expiryContainer.appendChild(expiryField);
+      cvvContainer.appendChild(cvvField);
+
+      submitButton.addEventListener("click", async () => {
+        try {
+          setCardSubmitState("loading");
+          const order = await createOrderOnServer();
+          const submitResult = await cardFieldsInstance.submit(order.orderId);
+
+          if (!submitResult) {
+            setCardError("Card payment failed. Please try again.");
+            return;
+          }
+
+          const state = submitResult.state;
+          const data = submitResult.data || {};
+
+          if (state === "succeeded") {
+            const approvedOrderId = data.orderId || order.orderId;
+            const result = await finalizeCheckout(approvedOrderId);
+            if (result.error) {
+              setCardError(result.error);
+              return;
+            }
+
+            setCardSubmitState("default");
+            window.location.href = result.orderData.redirect_url;
+            return;
+          }
+
+          if (state === "canceled") {
+            setCardError("Card payment was canceled.");
+            return;
+          }
+
+          const cardErrorMessage = data.message || "Card payment failed. Please try again.";
+          setCardError(cardErrorMessage);
+        } catch (error) {
+          const message = (error && error.message) || "Card payment failed. Please try again.";
+          setCardError(message);
+        }
+      });
+    } catch (error) {
+      submitButton.style.display = "none";
+      setCardError("Unable to initialize card payments. Please use PayPal checkout.");
+    }
+  }
+
+  async function initV6Checkout() {
+    if (!window.paypal || !window.paypal.createInstance) {
+      setPayPalButtonError("Unable to initialize PayPal checkout. Please refresh and try again.");
+      setCardError("Unable to initialize card payments. Please refresh and try again.");
+      return;
+    }
+
+    if (typeof window.isBrowserSupportedByPayPal === "function" && !window.isBrowserSupportedByPayPal()) {
+      setPayPalButtonError("This browser is not supported by PayPal checkout.");
+      setCardError("This browser is not supported by PayPal card payments.");
+      return;
+    }
+
+    try {
+      const paypalSdkInstance = await window.paypal.createInstance({
+        clientId: "{{ client_id }}",
+        components: ["paypal-payments"],
+        pageType: "checkout",
+      });
+
+      await initPayPalV6Button(paypalSdkInstance);
+      await initCardFieldsV6();
+    } catch (error) {
+      setPayPalButtonError("Unable to initialize PayPal checkout. Please refresh and try again.");
+      setCardError("Unable to initialize card payments. Please refresh and try again.");
+    }
+  }
+
+  initV6Checkout();
 </script>
 
 {% endblock %}
@@ -312,7 +429,8 @@
     </div>
 
     <p class="text-muted text-center">or login to</p>
-    <div id="paypal-button-container"></div>
+    <div class="alert alert-danger" id="paypal-button-error" role="alert" style="display: none;"></div>
+    <paypal-button id="paypal-v6-button" type="checkout" class="paypal-gold" hidden></paypal-button>
 
   </div>
 
