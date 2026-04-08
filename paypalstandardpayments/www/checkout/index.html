@@ -103,11 +103,49 @@
         ],
       }),
     })
-      .then((response) => response.json())
-      .then((order) => ({
-        id: order.id,
-        orderId: order.orderId || order.id,
-      }));
+      .then((response) => {
+        return parseServerResponse(response).then((payload) => ({
+          ok: response.ok,
+          status: response.status,
+          payload,
+        }));
+      })
+      .then(({ ok, status, payload }) => {
+        if (!ok) {
+          if (payload.isJson && payload.data && payload.data._error_message) {
+            throw new Error(payload.data._error_message);
+          }
+
+          if (payload.isJson && payload.data && payload.data.error) {
+            throw new Error(payload.data.error);
+          }
+
+          if (status === 403) {
+            throw new Error("You do not have permission to start this payment.");
+          }
+
+          throw new Error("Unable to create PayPal order. Please try again.");
+        }
+
+        if (!payload.isJson || !payload.data) {
+          throw new Error("Invalid server response. Please try again.");
+        }
+
+        const order = payload.data;
+        if (order.error) {
+          throw new Error(order.error);
+        }
+
+        const orderId = order.orderId || order.id;
+        if (!orderId) {
+          throw new Error("PayPal order creation failed. Please retry.");
+        }
+
+        return {
+          id: order.id || orderId,
+          orderId,
+        };
+      });
   }
 
   function finalizeCheckout(orderID) {

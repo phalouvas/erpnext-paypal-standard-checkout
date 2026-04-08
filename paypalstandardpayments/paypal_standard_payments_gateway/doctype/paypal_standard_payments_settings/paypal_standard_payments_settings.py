@@ -106,18 +106,107 @@ def get_token(settings):
 
 	return settings.token
 
-@frappe.whitelist()
-def create_order():
-	request_data = frappe.request.get_data()
-	data = json.loads(request_data)
-	reference_doctype = data["cart"][0]["reference_doctype"]
-	reference_docname = data["cart"][0]["reference_docname"]
+
+def _get_create_order_reference():
+	try:
+		request_data = frappe.request.get_data() or "{}"
+		payload = json.loads(request_data)
+	except json.JSONDecodeError:
+		frappe.throw(_("Invalid request payload"), frappe.ValidationError)
+
+	cart = payload.get("cart") if isinstance(payload, dict) else None
+	if not isinstance(cart, list) or not cart or not isinstance(cart[0], dict):
+		frappe.throw(_("Invalid checkout request"), frappe.ValidationError)
+
+	reference_doctype = cart[0].get("reference_doctype")
+	reference_docname = cart[0].get("reference_docname")
+	if not reference_doctype or not reference_docname:
+		frappe.throw(_("Missing payment reference"), frappe.ValidationError)
+
+	return reference_doctype, reference_docname
+
+
+def _is_guest_allowed_for_doctype(doctype):
+	return bool(
+		frappe.db.exists(
+			"Web Form",
+			{
+				"doc_type": doctype,
+				"published": 1,
+				"accept_payment": 1,
+				"login_required": 0,
+			},
+		)
+	)
+
+
+def _validate_checkout_access(reference_doctype, doc):
+	if reference_doctype == "Payment Request":
+		if frappe.has_permission("Payment Request", "read", doc=doc):
+			return
+
+		if getattr(doc, "reference_doctype", None) and getattr(doc, "reference_name", None):
+			if frappe.has_website_permission(doc.reference_name, doctype=doc.reference_doctype):
+				return
+
+		if frappe.session.user != "Guest" and getattr(doc, "email_to", None) == frappe.session.user:
+			return
+
+		frappe.throw(_("Not Permitted"), frappe.PermissionError)
+
+	if frappe.session.user == "Guest":
+		if not _is_guest_allowed_for_doctype(reference_doctype):
+			frappe.throw(_("Not Permitted"), frappe.PermissionError)
+
+		if hasattr(doc, "owner") and doc.owner not in (None, "Guest"):
+			frappe.throw(_("Not Permitted"), frappe.PermissionError)
+		return
+
+	if not frappe.has_permission(reference_doctype, "read", doc=doc):
+		frappe.throw(_("Not Permitted"), frappe.PermissionError)
+
+
+def _get_checkout_reference_doc(reference_doctype, reference_docname):
 	doc = frappe.get_cached_doc(reference_doctype, reference_docname)
-	if doc.grand_total == 0:
-		doc_reference_doctype = doc.reference_doctype
-		doc_reference_name = doc.reference_name
-		reference_docname = frappe.get_all(reference_doctype, filters={"reference_doctype": doc_reference_doctype, "reference_name": doc_reference_name, "grand_total": (">", 0)}, fields=["name"])[0].name
-		doc = frappe.get_doc(reference_doctype, reference_docname)
+	_validate_checkout_access(reference_doctype, doc)
+
+	if doc.grand_total != 0:
+		return reference_docname, doc
+
+	doc_reference_doctype = doc.reference_doctype
+	doc_reference_name = doc.reference_name
+	matching_docs = frappe.get_all(
+		reference_doctype,
+		filters={
+			"reference_doctype": doc_reference_doctype,
+			"reference_name": doc_reference_name,
+			"grand_total": (">", 0),
+		},
+		fields=["name"],
+		order_by="modified desc",
+		limit=1,
+		ignore_permissions=True,
+	)
+	if not matching_docs:
+		frappe.throw(_("No payable payment request found"), frappe.DoesNotExistError)
+
+	reference_docname = matching_docs[0].name
+	doc = frappe.get_cached_doc(reference_doctype, reference_docname)
+	_validate_checkout_access(reference_doctype, doc)
+	return reference_docname, doc
+
+
+@frappe.whitelist(allow_guest=True)
+def create_order():
+	try:
+		reference_doctype, reference_docname = _get_create_order_reference()
+		reference_docname, doc = _get_checkout_reference_doc(reference_doctype, reference_docname)
+	except frappe.PermissionError as err:
+		frappe.local.response.update({"error": str(err) or _("Not Permitted")})
+		return
+	except (frappe.ValidationError, frappe.DoesNotExistError) as err:
+		frappe.local.response.update({"error": str(err)})
+		return
 
 	settings = frappe.get_doc("PayPal Standard Payments Settings")
 	get_token(settings)
@@ -176,9 +265,14 @@ def create_order():
 	return
 
 def get_description(doc):
-	result = doc.subject
+	result = (
+		getattr(doc, "subject", None)
+		or getattr(doc, "title", None)
+		or getattr(doc, "name", None)
+		or _("Payment")
+	)
 
-	if doc.reference_doctype == "Sales Order":
+	if getattr(doc, "reference_doctype", None) == "Sales Order" and getattr(doc, "reference_name", None):
 		sales_order = frappe.get_doc("Sales Order", doc.reference_name)
 		# if only one item in the cart, use the item name as description
 		if len(sales_order.items) == 1:
@@ -191,7 +285,7 @@ def get_order_id_from_payload(payload):
 	"""Accept both legacy orderID and v6-style orderId keys."""
 	return payload.get("orderID") or payload.get("orderId")
 
-@frappe.whitelist()
+@frappe.whitelist(allow_guest=True)
 def on_approve():
 	order_id = None
 	try:
